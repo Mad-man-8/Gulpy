@@ -38,7 +38,7 @@ A multiplayer-style snake game inspired by *Gulper.io*, built using **React** an
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/gulpy.git
+git clone https://github.com/Mad-man-8/Gulpy.git
 cd gulpy
 npm install
 ```
