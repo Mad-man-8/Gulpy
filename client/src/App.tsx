@@ -1,33 +1,47 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-const SNAKE_LENGTH = 200;
+const INITIAL_SNAKE_LENGTH = 300;
 const PLAY_AREA_RADIUS = 3000;
+const FOOD_COUNT = 50;
+const FOOD_RADIUS = 10;
 
 type Point = { x: number; y: number };
+type Food = { pos: Point; eaten: boolean };
 type Bot = {
   pos: Point;
   trail: Point[];
-  direction: number; // radians
+  direction: number;
   speed: number;
-  colorHue: number; // added random hue for each bot
+  colorHue: number;
 };
 
 const getRandomHue = () => Math.floor(Math.random() * 360);
 
 const App = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const playerPos = useRef<Point>({ x: 0, y: 0 });
   const mousePos = useRef<Point>({ x: 0, y: 0 });
   const speed = useRef(2);
   const body = useRef<Point[]>([]);
+  const [fps, setFps] = useState(0);
+  const [memMB, setMemMB] = useState<number | null>(null);
 
-  // Initialize 8 bots with random positions inside the play area and random colors
+  const [food, setFood] = useState<Food[]>(() =>
+    Array.from({ length: FOOD_COUNT }).map(() => ({
+      pos: {
+        x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
+        y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
+      },
+      eaten: false,
+    }))
+  );
+
   const bots = useRef<Bot[]>(
     Array.from({ length: 8 }).map(() => ({
       pos: {
-        x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8, // inside 80% radius for safety
+        x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
         y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
       },
       trail: [],
@@ -40,177 +54,190 @@ const App = () => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctxRef.current = ctx;
+    playerPos.current = { x: canvas.width / 2, y: canvas.height / 2 };
 
-    playerPos.current = {
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-    };
-
-    const changeDirectionProbability = 0.01;
+    let frames = 0;
+    let lastFpsUpdate = performance.now();
 
     const update = () => {
       if (!ctxRef.current || !canvasRef.current) return;
-
-      const ctx = ctxRef.current;
-      const canvas = canvasRef.current;
-
-      // Background with grid
-      ctx.fillStyle = '#0d0d0d';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw grid
-      const gridSize = 40;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-      ctx.lineWidth = 2;
-
-      for (let x = 0; x < canvas.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < canvas.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      }
-
-      // Move player toward cursor
-      const dx = mousePos.current.x - canvas.width / 2;
-      const dy = mousePos.current.y - canvas.height / 2;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist > 1) {
-        const nextX = playerPos.current.x + (dx / dist) * speed.current;
-        const nextY = playerPos.current.y + (dy / dist) * speed.current;
-
-        if (Math.hypot(nextX - canvas.width / 2, nextY - canvas.height / 2) < PLAY_AREA_RADIUS) {
-          playerPos.current.x = nextX;
-          playerPos.current.y = nextY;
+      const now = performance.now();
+      frames++;
+      if (now - lastFpsUpdate > 1000) {
+        setFps(frames);
+        frames = 0;
+        lastFpsUpdate = now;
+        // Sample memory usage if available
+        if (
+          (performance as any).memory &&
+          (performance as any).memory.usedJSHeapSize
+        ) {
+          const used = (performance as any).memory.usedJSHeapSize;
+          setMemMB((used / 1024 / 1024).toFixed(2) as unknown as number);
         }
       }
 
-      // Add current position to player snake body
+      const ctx = ctxRef.current;
+      const { width, height } = canvas;
+
+      // Background + grid
+      ctx.fillStyle = '#0d0d0d';
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 2;
+      for (let x = 0; x < width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // Move player
+      const dx = mousePos.current.x - width / 2;
+      const dy = mousePos.current.y - height / 2;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 1) {
+        const nx = playerPos.current.x + (dx / dist) * speed.current;
+        const ny = playerPos.current.y + (dy / dist) * speed.current;
+        if (
+          Math.hypot(nx - width / 2, ny - height / 2) <
+          PLAY_AREA_RADIUS
+        ) {
+          playerPos.current.x = nx;
+          playerPos.current.y = ny;
+        }
+      }
+      // Trail
       body.current.unshift({ ...playerPos.current });
-      if (body.current.length > SNAKE_LENGTH) {
+      if (body.current.length > INITIAL_SNAKE_LENGTH) {
         body.current.pop();
       }
 
-      // Update bots
-      bots.current.forEach(bot => {
-        if (Math.random() < changeDirectionProbability) {
-          bot.direction += (Math.random() - 0.5) * Math.PI / 2;
-        }
-
-        const nextX = bot.pos.x + Math.cos(bot.direction) * bot.speed;
-        const nextY = bot.pos.y + Math.sin(bot.direction) * bot.speed;
-
-        // Keep bots inside play area circle (relative to center 0,0)
-        if (Math.hypot(nextX, nextY) < PLAY_AREA_RADIUS) {
-          bot.pos.x = nextX;
-          bot.pos.y = nextY;
-        } else {
-          bot.direction += Math.PI;
-        }
-
-        bot.trail.unshift({ ...bot.pos });
-        if (bot.trail.length > SNAKE_LENGTH) {
-          bot.trail.pop();
+      // Check food collisions
+      food.forEach((f) => {
+        if (!f.eaten) {
+          const hx = body.current[0].x;
+          const hy = body.current[0].y;
+          if (
+            Math.hypot(f.pos.x - hx, f.pos.y - hy) < FOOD_RADIUS + 25
+          ) {
+            f.eaten = true;
+            // grow trail
+            for (let i = 0; i < 20; i++) {
+              body.current.push({ ...body.current[body.current.length - 1] });
+            }
+          }
         }
       });
 
-      // Translate so player stays centered on screen
-      ctx.save();
-      ctx.translate(canvas.width / 2 - playerPos.current.x, canvas.height / 2 - playerPos.current.y);
+      // Update bots
+      bots.current.forEach((bot) => {
+        if (Math.random() < 0.01) {
+          bot.direction += (Math.random() - 0.5) * (Math.PI / 2);
+        }
+        const nx = bot.pos.x + Math.cos(bot.direction) * bot.speed;
+        const ny = bot.pos.y + Math.sin(bot.direction) * bot.speed;
+        if (Math.hypot(nx, ny) < PLAY_AREA_RADIUS) {
+          bot.pos.x = nx;
+          bot.pos.y = ny;
+        } else {
+          bot.direction += Math.PI;
+        }
+        bot.trail.unshift({ ...bot.pos });
+        if (bot.trail.length > INITIAL_SNAKE_LENGTH) bot.trail.pop();
+      });
 
-      // Draw play area border
+      // Center and draw
+      ctx.save();
+      ctx.translate(width / 2 - playerPos.current.x, height / 2 - playerPos.current.y);
+
       ctx.beginPath();
       ctx.strokeStyle = '#444';
       ctx.lineWidth = 15;
-      ctx.arc(canvas.width / 2, canvas.height / 2, PLAY_AREA_RADIUS, 0, Math.PI * 2);
+      ctx.arc(width / 2, height / 2, PLAY_AREA_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Draw player snake body
-      ctx.beginPath();
+      // Food
+      food.forEach((f) => {
+        if (!f.eaten) {
+          ctx.fillStyle = 'lime';
+          ctx.beginPath();
+          ctx.arc(f.pos.x, f.pos.y, FOOD_RADIUS, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Draw player
       for (let i = 0; i < body.current.length - 1; i++) {
         const p1 = body.current[i];
         const p2 = body.current[i + 1];
-        ctx.strokeStyle = `hsl(${(i / SNAKE_LENGTH) * 360}, 100%, 50%)`;
-        ctx.lineWidth = 40 * (1 - i / SNAKE_LENGTH);
+        ctx.strokeStyle = `hsl(${(i / INITIAL_SNAKE_LENGTH) * 360},100%,50%)`;
+        ctx.lineWidth = 40 * (1 - i / INITIAL_SNAKE_LENGTH);
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
       }
-
-      // Draw player head
       const head = body.current[0];
       ctx.fillStyle = 'orange';
       ctx.beginPath();
       ctx.arc(head.x, head.y, 25, 0, Math.PI * 2);
       ctx.fill();
 
-      // Draw bots snakes with their colors
-      bots.current.forEach(bot => {
-        ctx.beginPath();
+      bots.current.forEach((bot) => {
         for (let i = 0; i < bot.trail.length - 1; i++) {
           const p1 = bot.trail[i];
           const p2 = bot.trail[i + 1];
-          ctx.strokeStyle = `hsl(${bot.colorHue}, 100%, 50%)`;
-          ctx.lineWidth = 40 * (1.4 - i / SNAKE_LENGTH);
+          ctx.strokeStyle = `hsl(${bot.colorHue},100%,50%)`;
+          ctx.lineWidth = 40 * (1.4 - i / INITIAL_SNAKE_LENGTH);
+          ctx.beginPath();
           ctx.moveTo(p1.x, p1.y);
           ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
         }
-        ctx.stroke();
-
-        // Draw bot head
         if (bot.trail.length > 0) {
-          const botHead = bot.trail[0];
-          ctx.fillStyle = `hsl(${bot.colorHue}, 100%, 50%)`;
+          const bh = bot.trail[0];
+          ctx.fillStyle = `hsl(${bot.colorHue},100%,50%)`;
           ctx.beginPath();
-          ctx.arc(botHead.x, botHead.y, 25, 0, Math.PI * 2);
+          ctx.arc(bh.x, bh.y, 25, 0, Math.PI * 2);
           ctx.fill();
         }
       });
 
       ctx.restore();
-
       requestAnimationFrame(update);
     };
 
     update();
-  }, []);
+  }, [food]);
 
-  // Mouse position tracking
+  // Mouse tracking
   useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
+    const handle = (e: MouseEvent) => {
       if (!canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       mousePos.current.x = e.clientX - rect.left;
       mousePos.current.y = e.clientY - rect.top;
     };
-
-    window.addEventListener('mousemove', handleMove);
-    return () => window.removeEventListener('mousemove', handleMove);
+    window.addEventListener('mousemove', handle);
+    return () => window.removeEventListener('mousemove', handle);
   }, []);
 
-  // Mouse click for acceleration
+  // Click acceleration
   useEffect(() => {
-    const down = (e: MouseEvent) => {
-      if (e.button === 0) speed.current = 5;
-    };
-    const up = (e: MouseEvent) => {
-      if (e.button === 0) speed.current = 2;
-    };
-
+    const down = (e: MouseEvent) => { if (e.button === 0) speed.current = 5; };
+    const up = (e: MouseEvent) => { if (e.button === 0) speed.current = 2; };
     window.addEventListener('mousedown', down);
     window.addEventListener('mouseup', up);
     return () => {
@@ -219,7 +246,20 @@ const App = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="w-full h-full fixed top-0 left-0" />;
+  return (
+    <>
+      <canvas ref={canvasRef} className="w-full h-full fixed top-0 left-0" />
+      <div style={{
+        position: 'fixed', bottom: '10px', left: '10px',
+        backgroundColor: 'rgba(0,0,0,0.6)', color: 'white',
+        padding: '6px 12px', borderRadius: '8px',
+        fontFamily: 'monospace', fontSize: '14px', zIndex: 10,
+      }}>
+        FPS: {fps} <br />
+        Memory: {memMB !== null ? `${memMB} MB` : 'N/A'}
+      </div>
+    </>
+  );
 };
 
 export default App;
