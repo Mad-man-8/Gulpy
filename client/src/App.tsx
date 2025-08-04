@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-const INITIAL_SNAKE_LENGTH = 300;
-const PLAY_AREA_RADIUS = 3000;
-const FOOD_COUNT = 1050;
-const FOOD_RADIUS = 10;
-
 type Point = { x: number; y: number };
 type Food = { pos: Point; eaten: boolean };
 type Bot = {
@@ -13,7 +8,14 @@ type Bot = {
   direction: number;
   speed: number;
   colorHue: number;
+  dead: boolean;
 };
+type Glitter = { pos: Point; colorHue: number };
+
+const INITIAL_SNAKE_LENGTH = 300;
+const PLAY_AREA_RADIUS = 3000;
+const FOOD_COUNT = 1050;
+const FOOD_RADIUS = 10;
 
 const getRandomHue = () => Math.floor(Math.random() * 360);
 
@@ -25,6 +27,8 @@ const App = () => {
   const mousePos = useRef<Point>({ x: 0, y: 0 });
   const speed = useRef(2);
   const body = useRef<Point[]>([]);
+  const glitter = useRef<Glitter[]>([]); // Glitter particles array
+
   const [fps, setFps] = useState(0);
   const [memMB, setMemMB] = useState<number | null>(null);
 
@@ -48,6 +52,7 @@ const App = () => {
       direction: Math.random() * Math.PI * 2,
       speed: 2,
       colorHue: getRandomHue(),
+      dead: false,
     }))
   );
 
@@ -72,7 +77,6 @@ const App = () => {
         setFps(frames);
         frames = 0;
         lastFpsUpdate = now;
-        // Sample memory usage if available
         if (
           (performance as any).memory &&
           (performance as any).memory.usedJSHeapSize
@@ -110,35 +114,81 @@ const App = () => {
       if (dist > 1) {
         const nx = playerPos.current.x + (dx / dist) * speed.current;
         const ny = playerPos.current.y + (dy / dist) * speed.current;
-        if (
-          Math.hypot(nx - width / 2, ny - height / 2) <
-          PLAY_AREA_RADIUS
-        ) {
+        if (Math.hypot(nx - width / 2, ny - height / 2) < PLAY_AREA_RADIUS) {
           playerPos.current.x = nx;
           playerPos.current.y = ny;
         }
       }
-      // Trail
+
+      // Update player trail (fixed length, no growth)
       body.current.unshift({ ...playerPos.current });
       if (body.current.length > INITIAL_SNAKE_LENGTH) {
         body.current.pop();
       }
 
-      // Check food collisions
+      // Check food collisions (no growth)
+      const headX = body.current[0].x;
+      const headY = body.current[0].y;
       food.forEach((f) => {
         if (!f.eaten) {
-          const hx = body.current[0].x;
-          const hy = body.current[0].y;
-          if (
-            Math.hypot(f.pos.x - hx, f.pos.y - hy) < FOOD_RADIUS + 25
-          ) {
+          if (Math.hypot(f.pos.x - headX, f.pos.y - headY) < FOOD_RADIUS + 25) {
             f.eaten = true;
-            // grow trail
-            for (let i = 0; i < 20; i++) {
-              body.current.push({ ...body.current[body.current.length - 1] });
-            }
+            // no growth
           }
         }
+      });
+
+      // Player hits bot body → player dies
+      const playerHead = body.current[0];
+      let playerDied = false;
+      for (const bot of bots.current) {
+        for (let i = 1; i < bot.trail.length; i++) {
+          const segment = bot.trail[i];
+          const distance = Math.hypot(playerHead.x - segment.x, playerHead.y - segment.y);
+          if (distance < 20) {
+            playerDied = true;
+            break;
+          }
+        }
+        if (playerDied) break;
+      }
+
+      if (playerDied) {
+        alert("You died!");
+        window.location.reload();
+        return;
+      }
+
+      // Bot hits player body → bot dies + spawn glitter
+      for (const bot of bots.current) {
+        if (bot.trail.length === 0) continue;
+        const botHead = bot.trail[0];
+        for (let i = 1; i < body.current.length; i++) {
+          const segment = body.current[i];
+          const distance = Math.hypot(botHead.x - segment.x, botHead.y - segment.y);
+          if (distance < 20) {
+            bot.dead = true;
+
+            // Spawn glitter dust from bot trail
+            for (const segment of bot.trail) {
+              glitter.current.push({
+                pos: { ...segment },
+                colorHue: bot.colorHue,
+              });
+            }
+
+            break;
+          }
+        }
+      }
+
+      // Remove dead bots
+      bots.current = bots.current.filter((bot) => !bot.dead);
+
+      // Player eats glitter dust
+      glitter.current = glitter.current.filter((dust) => {
+        const dist = Math.hypot(playerHead.x - dust.pos.x, playerHead.y - dust.pos.y);
+        return dist >= 20; // remove glitter if close to player head
       });
 
       // Update bots
@@ -158,17 +208,18 @@ const App = () => {
         if (bot.trail.length > INITIAL_SNAKE_LENGTH) bot.trail.pop();
       });
 
-      // Center and draw
+      // Draw centered view
       ctx.save();
       ctx.translate(width / 2 - playerPos.current.x, height / 2 - playerPos.current.y);
 
+      // Draw play area circle
       ctx.beginPath();
       ctx.strokeStyle = '#444';
       ctx.lineWidth = 15;
       ctx.arc(width / 2, height / 2, PLAY_AREA_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Food
+      // Draw food
       food.forEach((f) => {
         if (!f.eaten) {
           ctx.fillStyle = 'lime';
@@ -178,7 +229,15 @@ const App = () => {
         }
       });
 
-      // Draw player
+      // Draw glitter dust
+      glitter.current.forEach((dust) => {
+        ctx.beginPath();
+        ctx.arc(dust.pos.x, dust.pos.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${dust.colorHue}, 100%, 70%)`;
+        ctx.fill();
+      });
+
+      // Draw player snake
       for (let i = 0; i < body.current.length - 1; i++) {
         const p1 = body.current[i];
         const p2 = body.current[i + 1];
@@ -189,13 +248,16 @@ const App = () => {
         ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
       }
+      // Player head circle
       const head = body.current[0];
       ctx.fillStyle = 'orange';
       ctx.beginPath();
       ctx.arc(head.x, head.y, 25, 0, Math.PI * 2);
       ctx.fill();
 
+      // Draw bots
       bots.current.forEach((bot) => {
+        if (bot.dead) return;
         for (let i = 0; i < bot.trail.length - 1; i++) {
           const p1 = bot.trail[i];
           const p2 = bot.trail[i + 1];
@@ -216,6 +278,7 @@ const App = () => {
       });
 
       ctx.restore();
+
       requestAnimationFrame(update);
     };
 
@@ -236,8 +299,12 @@ const App = () => {
 
   // Click acceleration
   useEffect(() => {
-    const down = (e: MouseEvent) => { if (e.button === 0) speed.current = 5; };
-    const up = (e: MouseEvent) => { if (e.button === 0) speed.current = 2; };
+    const down = (e: MouseEvent) => {
+      if (e.button === 0) speed.current = 5;
+    };
+    const up = (e: MouseEvent) => {
+      if (e.button === 0) speed.current = 2;
+    };
     window.addEventListener('mousedown', down);
     window.addEventListener('mouseup', up);
     return () => {
@@ -249,12 +316,20 @@ const App = () => {
   return (
     <>
       <canvas ref={canvasRef} className="w-full h-full fixed top-0 left-0" />
-      <div style={{
-        position: 'fixed', bottom: '10px', left: '10px',
-        backgroundColor: 'rgba(0,0,0,0.6)', color: 'white',
-        padding: '6px 12px', borderRadius: '8px',
-        fontFamily: 'monospace', fontSize: '14px', zIndex: 10,
-      }}>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 10,
+          left: 10,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          color: 'white',
+          padding: '6px 12px',
+          borderRadius: 8,
+          fontFamily: 'monospace',
+          fontSize: 14,
+          zIndex: 10,
+        }}
+      >
         FPS: {fps} <br />
         Memory: {memMB !== null ? `${memMB} MB` : 'N/A'}
       </div>
