@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const INITIAL_SNAKE_LENGTH = 300;
 const PLAY_AREA_RADIUS = 3000;
-const FOOD_COUNT = 50;
+const FOOD_COUNT = 1050;
 const FOOD_RADIUS = 10;
 
 type Point = { x: number; y: number };
@@ -28,7 +28,7 @@ const App = () => {
   const [fps, setFps] = useState(0);
   const [memMB, setMemMB] = useState<number | null>(null);
 
-  const [food, setFood] = useState<Food[]>(() =>
+  const [food] = useState<Food[]>(() =>
     Array.from({ length: FOOD_COUNT }).map(() => ({
       pos: {
         x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
@@ -148,7 +148,7 @@ const App = () => {
         }
         const nx = bot.pos.x + Math.cos(bot.direction) * bot.speed;
         const ny = bot.pos.y + Math.sin(bot.direction) * bot.speed;
-        if (Math.hypot(nx, ny) < PLAY_AREA_RADIUS) {
+        if (Math.hypot(nx, ny) < PLAY_AREA_RADIUS + 10) {
           bot.pos.x = nx;
           bot.pos.y = ny;
         } else {
