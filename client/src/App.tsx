@@ -43,7 +43,7 @@ const App = () => {
   );
 
   const bots = useRef<Bot[]>(
-    Array.from({ length: 8 }).map(() => ({
+    Array.from({ length: 100 }).map(() => ({
       pos: {
         x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
         y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
