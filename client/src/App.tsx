@@ -21,8 +21,28 @@ const FOOD_RADIUS = 10;
 
 const getRandomHue = () => Math.floor(Math.random() * 360);
 
+// Helper function to format seconds as MM:SS
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+};
+
 const App = () => {
   const [score, setScore] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0); // in seconds
+  const [gameRunning, setGameRunning] = useState(false);
+
+  const startGame = () => {
+    setScore(0);
+    setElapsedTime(0);
+    setGameRunning(true);
+  };
+
+  const stopGame = () => {
+    setGameRunning(false);
+  };
+
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -61,6 +81,17 @@ const App = () => {
   );
 
   useEffect(() => {
+    if (!gameRunning) return;
+
+    const interval = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameRunning]);
+
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.width = window.innerWidth;
@@ -72,6 +103,8 @@ const App = () => {
 
     let frames = 0;
     let lastFpsUpdate = performance.now();
+
+
 
     const update = () => {
       if (!ctxRef.current || !canvasRef.current) return;
@@ -379,7 +412,21 @@ const App = () => {
           fontSize: 14,
           zIndex: 10,
         }}
-      >
+      ><button
+    onClick={startGame}
+    style={{
+      padding: '4px 8px',
+      fontSize: 14,
+      cursor: 'pointer',
+      borderRadius: 4,
+      border: 'none',
+      backgroundColor: '#28a745',
+      color: 'white',
+    }}
+  >
+    Start Timer
+  </button> <br />
+        Elapsed time: {formatTime(elapsedTime)} <br />
         Score: {score} <br />
         FPS: {fps} <br />
         Memory: {memMB !== null ? `${memMB} MB` : 'N/A'}
