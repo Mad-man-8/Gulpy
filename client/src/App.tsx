@@ -39,9 +39,9 @@ const App = () => {
     setGameRunning(true);
   };
 
-  const stopGame = () => {
+  /*const stopGame = () => {
     setGameRunning(false);
-  };
+  };*/
 
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
