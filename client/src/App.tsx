@@ -306,7 +306,7 @@ const App = () => {
 
   const handleTouchStart = (e: TouchEvent) => {
     if (e.touches.length > 1) {
-      speed.current = 10; // Accelerate
+      speed.current = 20; // Accelerate
       e.preventDefault(); // Prevent zoom
     }
   };
@@ -314,7 +314,7 @@ const App = () => {
   const handleTouchEnd = (e: TouchEvent) => {
     // If fewer than 2 touches remain, return to normal speed
     if (e.touches.length < 2) {
-      speed.current = 5;
+      speed.current = 10;
     }
   };
 
