@@ -12,6 +12,7 @@ type Bot = {
 };
 type Glitter = { pos: Point; colorHue: number };
 
+// Constants
 const INITIAL_SNAKE_LENGTH = 300;
 const PLAY_AREA_RADIUS = 3000;
 const FOOD_COUNT = 1050;
@@ -287,41 +288,46 @@ const App = () => {
   
   // Touch controls
     useEffect(() => {
-      const handleTouchMove = (e: TouchEvent) => {
-        if (!canvasRef.current) return;
-        const rect = canvasRef.current.getBoundingClientRect();
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!canvasRef.current) return;
 
-        // Use the first touch to control direction
-        if (e.touches.length >= 1) {
-          mousePos.current.x = e.touches[0].clientX - rect.left;
-          mousePos.current.y = e.touches[0].clientY - rect.top;
-        }
-      };
+    // Prevent two-finger pinch zoom
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
 
-      const handleTouchStart = (e: TouchEvent) => {
-        if (e.touches.length > 1) {
-          // Two fingers = accelerate
-          speed.current = 5;
-        }
-      };
+    const rect = canvasRef.current.getBoundingClientRect();
 
-      const handleTouchEnd = (e: TouchEvent) => {
-        // When only one or zero fingers are left → stop accelerating
-        if (e.touches.length <= 1) {
-          speed.current = 2;
-        }
-      };
+    // First touch controls direction
+    const touch = e.touches[0];
+    mousePos.current.x = touch.clientX - rect.left;
+    mousePos.current.y = touch.clientY - rect.top;
+  };
 
-      window.addEventListener('touchmove', handleTouchMove);
-      window.addEventListener('touchstart', handleTouchStart);
-      window.addEventListener('touchend', handleTouchEnd);
+  const handleTouchStart = (e: TouchEvent) => {
+    if (e.touches.length > 1) {
+      speed.current = 10; // Accelerate
+      e.preventDefault(); // Prevent zoom
+    }
+  };
 
-      return () => {
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('touchstart', handleTouchStart);
-        window.removeEventListener('touchend', handleTouchEnd);
-      };
-    }, []);
+  const handleTouchEnd = (e: TouchEvent) => {
+    // If fewer than 2 touches remain, return to normal speed
+    if (e.touches.length < 2) {
+      speed.current = 5;
+    }
+  };
+
+  window.addEventListener('touchmove', handleTouchMove, { passive: false });
+  window.addEventListener('touchstart', handleTouchStart, { passive: false });
+  window.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+  return () => {
+    window.removeEventListener('touchmove', handleTouchMove);
+    window.removeEventListener('touchstart', handleTouchStart);
+    window.removeEventListener('touchend', handleTouchEnd);
+  };
+}, []);
 
 
   // Mouse tracking
