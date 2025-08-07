@@ -284,6 +284,45 @@ const App = () => {
 
     update();
   }, [food]);
+  
+  // Touch controls
+    useEffect(() => {
+      const handleTouchMove = (e: TouchEvent) => {
+        if (!canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+
+        // Use the first touch to control direction
+        if (e.touches.length >= 1) {
+          mousePos.current.x = e.touches[0].clientX - rect.left;
+          mousePos.current.y = e.touches[0].clientY - rect.top;
+        }
+      };
+
+      const handleTouchStart = (e: TouchEvent) => {
+        if (e.touches.length > 1) {
+          // Two fingers = accelerate
+          speed.current = 5;
+        }
+      };
+
+      const handleTouchEnd = (e: TouchEvent) => {
+        // When only one or zero fingers are left → stop accelerating
+        if (e.touches.length <= 1) {
+          speed.current = 2;
+        }
+      };
+
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchstart', handleTouchStart);
+      window.addEventListener('touchend', handleTouchEnd);
+
+      return () => {
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchend', handleTouchEnd);
+      };
+    }, []);
+
 
   // Mouse tracking
   useEffect(() => {
