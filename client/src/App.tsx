@@ -13,6 +13,7 @@ type Bot = {
 type Glitter = { pos: Point; colorHue: number };
 
 // Constants
+
 const INITIAL_SNAKE_LENGTH = 300;
 const PLAY_AREA_RADIUS = 3000;
 const FOOD_COUNT = 1050;
@@ -21,6 +22,8 @@ const FOOD_RADIUS = 10;
 const getRandomHue = () => Math.floor(Math.random() * 360);
 
 const App = () => {
+  const [score, setScore] = useState(0);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
@@ -134,6 +137,7 @@ const App = () => {
         if (!f.eaten) {
           if (Math.hypot(f.pos.x - headX, f.pos.y - headY) < FOOD_RADIUS + 25) {
             f.eaten = true;
+            setScore((prev) => prev + 10); // ✅ Increase score by 10
             // no growth
           }
         }
@@ -169,7 +173,8 @@ const App = () => {
           const distance = Math.hypot(botHead.x - segment.x, botHead.y - segment.y);
           if (distance < 20) {
             bot.dead = true;
-
+            // ✅ +50 points when bot dies hitting player
+            setScore((prev) => prev + 50);
             // Spawn glitter dust from bot trail
             for (const segment of bot.trail) {
               glitter.current.push({
@@ -375,6 +380,7 @@ const App = () => {
           zIndex: 10,
         }}
       >
+        Score: {score} <br />
         FPS: {fps} <br />
         Memory: {memMB !== null ? `${memMB} MB` : 'N/A'}
       </div>
