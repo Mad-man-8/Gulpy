@@ -10,8 +10,14 @@ type Bot = {
   colorHue: number;
   dead: boolean;
 };
-type Glitter = { pos: Point; colorHue: number };
-
+type Glitter = {
+  pos: Point;
+  colorHue: number;
+  vx: number;
+  vy: number;
+  alpha: number;
+  radius: number;
+};
 // Constants
 const INITIAL_SNAKE_LENGTH = 300;
 const PLAY_AREA_RADIUS = 3000;
@@ -72,7 +78,7 @@ const App = () => {
   );
 
   const bots = useRef<Bot[]>(
-    Array.from({ length: 100 }).map(() => ({
+    Array.from({ length: 22 }).map(() => ({
       pos: {
         x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
         y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
@@ -236,12 +242,19 @@ const App = () => {
             // ✅ +50 points when bot dies hitting player
             setScore((prev) => prev + 50);
             // Spawn glitter dust from bot trail
-            for (const segment of bot.trail) {
-              glitter.current.push({
-                pos: { ...segment },
-                colorHue: bot.colorHue,
-              });
-            }
+            // ...inside bot death handling...
+          for (const segment of bot.trail) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 2;
+            glitter.current.push({
+              pos: { ...segment },
+              colorHue: bot.colorHue,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              alpha: 1,
+              radius: 8 + Math.random() * 6,
+            });
+          }
 
             break;
           }
@@ -296,50 +309,92 @@ const App = () => {
       });
 
       // Draw glitter dust
-      glitter.current.forEach((dust) => {
+     glitter.current.forEach((dust) => {
+        ctx.save();
+        ctx.globalAlpha = dust.alpha;
         ctx.beginPath();
-        ctx.arc(dust.pos.x, dust.pos.y, 6, 0, Math.PI * 2);
+        ctx.arc(dust.pos.x, dust.pos.y, dust.radius, 0, Math.PI * 2);
         ctx.fillStyle = `hsl(${dust.colorHue}, 100%, 70%)`;
+        ctx.shadowColor = `hsl(${dust.colorHue}, 100%, 80%)`;
+        ctx.shadowBlur = 12;
         ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+        ctx.restore();
       });
 
-      // Draw player snake
-      for (let i = 0; i < body.current.length - 1; i++) {
-        const p1 = body.current[i];
-        const p2 = body.current[i + 1];
-        ctx.strokeStyle = `hsl(${(i / INITIAL_SNAKE_LENGTH) * 360},100%,50%)`;
-        ctx.lineWidth = 40 * (1 - i / INITIAL_SNAKE_LENGTH);
+      glitter.current = glitter.current.filter((dust) => {
+        // Animate
+        dust.pos.x += dust.vx;
+        dust.pos.y += dust.vy;
+        dust.vx *= 0.96; // friction
+        dust.vy *= 0.96;
+        dust.radius *= 0.97; // shrink
+        dust.alpha -= 0.015; // fade out
+
+        // Remove if invisible or too small
+        return dust.alpha > 0.05 && dust.radius > 1;
+      });
+
+      // Draw player snake with smooth skin
+      for (let i = 0; i < body.current.length; i++) {
+        const p = body.current[i];
+        // Head is bigger, tail is smaller
+        const radius = 25 * (1 - i / INITIAL_SNAKE_LENGTH) + 10;
+        // Gradient for shiny effect
+        const grad = ctx.createRadialGradient(
+          p.x, p.y, radius * 0.2,
+          p.x, p.y, radius
+        );
+        grad.addColorStop(0, 'white');
+        grad.addColorStop(0.3, `hsl(${(i / INITIAL_SNAKE_LENGTH) * 360}, 100%, 60%)`);
+        grad.addColorStop(1, `hsl(${(i / INITIAL_SNAKE_LENGTH) * 360}, 100%, 40%)`);
         ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 4;
+        ctx.fill();
+        ctx.shadowBlur = 0;
       }
-      // Player head circle
+
+      // Draw player head outline for clarity
       const head = body.current[0];
-      ctx.fillStyle = 'orange';
       ctx.beginPath();
       ctx.arc(head.x, head.y, 25, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.stroke();
 
-      // Draw bots
+      // Draw bots with smooth skin
       bots.current.forEach((bot) => {
         if (bot.dead) return;
-        for (let i = 0; i < bot.trail.length - 1; i++) {
-          const p1 = bot.trail[i];
-          const p2 = bot.trail[i + 1];
-          ctx.strokeStyle = `hsl(${bot.colorHue},100%,50%)`;
-          ctx.lineWidth = 40 * (1.4 - i / INITIAL_SNAKE_LENGTH);
+        for (let i = 0; i < bot.trail.length; i+=5) {
+          const p = bot.trail[i];
+          const radius = 25 * (1 - i / INITIAL_SNAKE_LENGTH) + 10;
+          const grad = ctx.createRadialGradient(
+            p.x, p.y, radius * 0.2,
+            p.x, p.y, radius
+          );
+          grad.addColorStop(0, 'white');
+          grad.addColorStop(0.3, `hsl(${bot.colorHue}, 100%, 60%)`);
+          grad.addColorStop(1, `hsl(${bot.colorHue}, 100%, 40%)`);
           ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.stroke();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.shadowColor = 'rgba(0,0,0,0.3)';
+          ctx.shadowBlur = 2;
+          ctx.fill();
+          ctx.shadowBlur = 0;
         }
+        // Bot head outline
         if (bot.trail.length > 0) {
           const bh = bot.trail[0];
-          ctx.fillStyle = `hsl(${bot.colorHue},100%,50%)`;
           ctx.beginPath();
           ctx.arc(bh.x, bh.y, 25, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+          ctx.stroke();
         }
       });
 
