@@ -13,7 +13,6 @@ type Bot = {
 type Glitter = { pos: Point; colorHue: number };
 
 // Constants
-
 const INITIAL_SNAKE_LENGTH = 300;
 const PLAY_AREA_RADIUS = 3000;
 const FOOD_COUNT = 1050;
@@ -29,6 +28,17 @@ const formatTime = (seconds: number) => {
 };
 
 const App = () => {
+  const joystickTouchId = useRef<number | null>(null);
+  const joystick = useRef<{
+    origin: Point;
+    current: Point;
+    active: boolean;
+  }>({
+    origin: { x: 0, y: 0 },
+    current: { x: 0, y: 0 },
+    active: false,
+  });
+
   const [score, setScore] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0); // in seconds
   const [gameRunning, setGameRunning] = useState(false);
@@ -38,11 +48,6 @@ const App = () => {
     setElapsedTime(0);
     setGameRunning(true);
   };
-
-  /*const stopGame = () => {
-    setGameRunning(false);
-  };*/
-
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -80,6 +85,9 @@ const App = () => {
     }))
   );
 
+  // Track if mobile acceleration is active (second finger down)
+  const mobileAccelerating = useRef(false);
+
   useEffect(() => {
     if (!gameRunning) return;
 
@@ -89,7 +97,6 @@ const App = () => {
 
     return () => clearInterval(interval);
   }, [gameRunning]);
-
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -103,8 +110,6 @@ const App = () => {
 
     let frames = 0;
     let lastFpsUpdate = performance.now();
-
-
 
     const update = () => {
       if (!ctxRef.current || !canvasRef.current) return;
@@ -144,17 +149,39 @@ const App = () => {
         ctx.stroke();
       }
 
-      // Move player
-      const dx = mousePos.current.x - width / 2;
-      const dy = mousePos.current.y - height / 2;
-      const dist = Math.hypot(dx, dy);
-      if (dist > 1) {
-        const nx = playerPos.current.x + (dx / dist) * speed.current;
-        const ny = playerPos.current.y + (dy / dist) * speed.current;
-        if (Math.hypot(nx - width / 2, ny - height / 2) < PLAY_AREA_RADIUS) {
-          playerPos.current.x = nx;
-          playerPos.current.y = ny;
+      // Move player (unified for desktop and mobile)
+      let moveX = 0, moveY = 0;
+      let currentSpeed = mobileAccelerating.current ? 20 : 10;
+      //let currentSpeed = speed.current;
+
+      if (joystick.current.active) {
+        // Mobile: use joystick direction
+        const dx = joystick.current.current.x - joystick.current.origin.x;
+        const dy = joystick.current.current.y - joystick.current.origin.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length > 0) {
+          const maxDist = 100;
+          const normX = (dx / length) * Math.min(length, maxDist) / maxDist;
+          const normY = (dy / length) * Math.min(length, maxDist) / maxDist;
+          moveX = normX * currentSpeed;
+          moveY = normY * currentSpeed;
         }
+      } else {
+        // Desktop: use mouse position
+        const dx = mousePos.current.x - width / 2;
+        const dy = mousePos.current.y - height / 2;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 1) {
+          moveX = (dx / dist) * (speed.current);
+          moveY = (dy / dist) * (speed.current);
+        }
+      }
+
+      const nx = playerPos.current.x + moveX;
+      const ny = playerPos.current.y + moveY;
+      if (Math.hypot(nx - width / 2, ny - height / 2) < PLAY_AREA_RADIUS) {
+        playerPos.current.x = nx;
+        playerPos.current.y = ny;
       }
 
       // Update player trail (fixed length, no growth)
@@ -323,52 +350,73 @@ const App = () => {
 
     update();
   }, [food]);
-  
-  // Touch controls
-    useEffect(() => {
-  const handleTouchMove = (e: TouchEvent) => {
-    if (!canvasRef.current) return;
 
-    // Prevent two-finger pinch zoom
-    if (e.touches.length > 1) {
-      e.preventDefault();
+  // Touch controls (joystick + acceleration)
+  useEffect(() => {
+  const handleTouchStart = (e: TouchEvent) => {
+    if (joystickTouchId.current === null && e.touches.length >= 1) {
+      const touch = e.touches[0];
+      joystickTouchId.current = touch.identifier;
+      joystick.current.origin = { x: touch.clientX, y: touch.clientY };
+      joystick.current.current = { x: touch.clientX, y: touch.clientY };
+      joystick.current.active = true;
     }
 
-    const rect = canvasRef.current.getBoundingClientRect();
-
-    // First touch controls direction
-    const touch = e.touches[0];
-    mousePos.current.x = touch.clientX - rect.left;
-    mousePos.current.y = touch.clientY - rect.top;
+    if (e.touches.length >= 2) {
+      mobileAccelerating.current = true;
+    }
   };
 
-  const handleTouchStart = (e: TouchEvent) => {
-    if (e.touches.length > 1) {
-      speed.current = 20; // Accelerate
-      e.preventDefault(); // Prevent zoom
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!joystick.current.active || joystickTouchId.current === null) return;
+
+    // Find the touch that matches the joystick's touch ID
+    const touch = Array.from(e.touches).find(
+      t => t.identifier === joystickTouchId.current
+    );
+    if (touch) {
+      joystick.current.current = { x: touch.clientX, y: touch.clientY };
     }
+
+    // Update acceleration based on total fingers
+    if (e.touches.length >= 2) {
+      mobileAccelerating.current = true;
+    } else {
+      mobileAccelerating.current = false;
+    }
+
+    e.preventDefault();
   };
 
   const handleTouchEnd = (e: TouchEvent) => {
-    // If fewer than 2 touches remain, return to normal speed
+    // Check if the joystick finger was lifted
+    const liftedTouch = Array.from(e.changedTouches).find(
+      t => t.identifier === joystickTouchId.current
+    );
+
+    if (liftedTouch) {
+      joystick.current.active = false;
+      joystickTouchId.current = null;
+    }
+
+    // Recheck how many fingers remain for acceleration
     if (e.touches.length < 2) {
-      speed.current = 10;
+      mobileAccelerating.current = false;
     }
   };
 
-  window.addEventListener('touchmove', handleTouchMove, { passive: false });
-  window.addEventListener('touchstart', handleTouchStart, { passive: false });
-  window.addEventListener('touchend', handleTouchEnd, { passive: false });
+  window.addEventListener("touchstart", handleTouchStart, { passive: false });
+  window.addEventListener("touchmove", handleTouchMove, { passive: false });
+  window.addEventListener("touchend", handleTouchEnd, { passive: false });
 
   return () => {
-    window.removeEventListener('touchmove', handleTouchMove);
-    window.removeEventListener('touchstart', handleTouchStart);
-    window.removeEventListener('touchend', handleTouchEnd);
+    window.removeEventListener("touchstart", handleTouchStart);
+    window.removeEventListener("touchmove", handleTouchMove);
+    window.removeEventListener("touchend", handleTouchEnd);
   };
 }, []);
 
-
-  // Mouse tracking
+  // Mouse tracking (desktop)
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       if (!canvasRef.current) return;
@@ -380,7 +428,7 @@ const App = () => {
     return () => window.removeEventListener('mousemove', handle);
   }, []);
 
-  // Click acceleration
+  // Click acceleration (desktop)
   useEffect(() => {
     const down = (e: MouseEvent) => {
       if (e.button === 0) speed.current = 5;
@@ -399,6 +447,7 @@ const App = () => {
   return (
     <>
       <canvas ref={canvasRef} className="w-full h-full fixed top-0 left-0" />
+
       <div
         style={{
           position: 'fixed',
@@ -413,19 +462,19 @@ const App = () => {
           zIndex: 10,
         }}
       ><button
-    onClick={startGame}
-    style={{
-      padding: '4px 8px',
-      fontSize: 14,
-      cursor: 'pointer',
-      borderRadius: 4,
-      border: 'none',
-      backgroundColor: '#28a745',
-      color: 'white',
-    }}
-  >
-    Start Timer
-  </button> <br />
+        onClick={startGame}
+        style={{
+          padding: '4px 8px',
+          fontSize: 14,
+          cursor: 'pointer',
+          borderRadius: 4,
+          border: 'none',
+          backgroundColor: '#28a745',
+          color: 'white',
+        }}
+      >
+        Start Timer
+      </button> <br />
         Elapsed time: {formatTime(elapsedTime)} <br />
         Score: {score} <br />
         FPS: {fps} <br />
