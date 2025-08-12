@@ -34,6 +34,7 @@ const formatTime = (seconds: number) => {
 };
 
 const App = () => {
+  const [showDeathPopup, setShowDeathPopup] = useState(false);
   const joystickTouchId = useRef<number | null>(null);
   const joystick = useRef<{
     origin: Point;
@@ -225,8 +226,8 @@ const App = () => {
       }
 
       if (playerDied) {
-        alert("You died!");
-        window.location.reload();
+        setShowDeathPopup(true);
+        setGameRunning(false);
         return;
       }
 
@@ -535,6 +536,43 @@ const App = () => {
         FPS: {fps} <br />
         Memory: {memMB !== null ? `${memMB} MB` : 'N/A'}
       </div>
+
+      {showDeathPopup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            color: 'white',
+            fontSize: 32,
+            fontFamily: 'monospace',
+          }}
+        >
+          <div style={{ marginBottom: 24 }}>You died!</div>
+          <button
+            style={{
+              padding: '10px 24px',
+              fontSize: 20,
+              borderRadius: 8,
+              border: 'none',
+              background: '#28a745',
+              color: 'white',
+              cursor: 'pointer',
+            }}
+            onClick={() => window.location.reload()}
+          >
+            Restart
+          </button>
+        </div>
+      )}
     </>
   );
 };
