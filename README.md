@@ -82,8 +82,8 @@ npm run build
 ## 🛣️ Roadmap 
 
 - ✅ Bots stay inside circular arena  
-- ⬜ Collision detection between player and bots  (feature not added yet)
-- ⬜ Add score tracking  (feature not added yet)
+- ✅ Collision detection between player and bots 
+- ✅ Add score tracking 
 - ⬜ Multiplayer over WebSocket  
 - ⬜ Skins/customization
 
