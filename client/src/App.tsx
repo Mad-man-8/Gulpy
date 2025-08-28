@@ -68,15 +68,17 @@ const App = () => {
   const [fps, setFps] = useState(0);
   const [memMB, setMemMB] = useState<number | null>(null);
 
-  const [food] = useState<Food[]>(() =>
-    Array.from({ length: FOOD_COUNT }).map(() => ({
-      pos: {
-        x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
-        y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
-      },
-      eaten: false,
-    }))
-  );
+  
+//initialise food
+      const [food] = useState<Food[]>(() =>
+      Array.from({ length: FOOD_COUNT }).map(() => ({
+        pos: {
+          x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
+          y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
+        },
+        eaten: false,
+      }))
+    );
 
   const bots = useRef<Bot[]>(
     Array.from({ length: 22 }).map(() => ({
@@ -119,42 +121,42 @@ const App = () => {
     let lastFpsUpdate = performance.now();
 
     const update = () => {
+
+      // Radial gradient background
+      
       if (!ctxRef.current || !canvasRef.current) return;
-      const now = performance.now();
-      frames++;
-      if (now - lastFpsUpdate > 1000) {
-        setFps(frames);
-        frames = 0;
-        lastFpsUpdate = now;
-        if (
-          (performance as any).memory &&
-          (performance as any).memory.usedJSHeapSize
-        ) {
-          const used = (performance as any).memory.usedJSHeapSize;
-          setMemMB((used / 1024 / 1024).toFixed(2) as unknown as number);
+
+        const ctx = ctxRef.current;
+        const { width, height } = canvasRef.current;
+
+        // Background gradient
+        const bgGrad = ctx.createRadialGradient(
+          width / 2, height / 2, width * 0.1,
+          width / 2, height / 2, width * 0.7
+        );
+        bgGrad.addColorStop(0, "#232946");
+        bgGrad.addColorStop(0.7, "#16161a");
+        bgGrad.addColorStop(1, "#0d0d0d");
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        // FPS + memory tracking
+        const now = performance.now();
+        frames++;
+        if (now - lastFpsUpdate > 1000) {
+          setFps(frames);
+          frames = 0;
+          lastFpsUpdate = now;
+
+          if ((performance as any).memory?.usedJSHeapSize) {
+            const used = (performance as any).memory.usedJSHeapSize;
+            setMemMB((used / 1024 / 1024).toFixed(2) as unknown as number);
+          }
         }
-      }
 
-      const ctx = ctxRef.current;
-      const { width, height } = canvas;
-
-      // Background + grid
-      ctx.fillStyle = '#0d0d0d';
-      ctx.fillRect(0, 0, width, height);
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 2;
-      for (let x = 0; x < width; x += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < height; y += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
+        // Grid
+        
+      
 
       // Move player (unified for desktop and mobile)
       let moveX = 0, moveY = 0;
@@ -227,7 +229,7 @@ const App = () => {
 
       if (playerDied) {
         setShowDeathPopup(true);
-        setGameRunning(false);
+        setGameRunning(true);
         return;
       }
 
@@ -262,8 +264,21 @@ const App = () => {
         }
       }
 
-      // Remove dead bots
-      bots.current = bots.current.filter((bot) => !bot.dead);
+      // Respawn dead bots at a random position
+      bots.current.forEach((bot) => {
+        if (bot.dead) {
+          bot.pos = {
+            x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
+            y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
+          };
+          bot.trail = [];
+          bot.direction = Math.random() * Math.PI * 2;
+          bot.speed = 2;
+          bot.colorHue = getRandomHue();
+          bot.dead = false;
+        }
+      });
+
 
       // Player eats glitter dust
       glitter.current = glitter.current.filter((dust) => {
@@ -272,7 +287,23 @@ const App = () => {
       });
 
       // Update bots
+
       bots.current.forEach((bot) => {
+        // Calculate vector from bot to player head
+      const playerHead = body.current[0];
+      const dx = playerHead.x - bot.pos.x;
+      const dy = playerHead.y - bot.pos.y;
+      const distToPlayer = Math.hypot(dx, dy);
+
+      // If player is within a certain distance, steer away
+      if (distToPlayer < 600) { // 600 can be tweaked for "fear" radius
+        const angleAway = Math.atan2(bot.pos.y - playerHead.y, bot.pos.x - playerHead.x);
+        // Smoothly steer away (lerp direction)
+        const angleDiff = ((angleAway - bot.direction + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        bot.direction += angleDiff * 0.15; // 0.15 = steering strength, tweak as needed
+      }
+
+
         if (Math.random() < 0.01) {
           bot.direction += (Math.random() - 0.5) * (Math.PI / 2);
         }
