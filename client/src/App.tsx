@@ -66,8 +66,7 @@ const App = () => {
   const glitter = useRef<Glitter[]>([]); // Glitter particles array
 
   const [fps, setFps] = useState(0);
-  const [memMB, setMemMB] = useState<number | null>(null);
-
+  const [ping, setPing] = useState<number | null>(null);
   
 //initialise food
       const [food] = useState<Food[]>(() =>
@@ -151,10 +150,6 @@ const App = () => {
           frames = 0;
           lastFpsUpdate = now;
 
-          if ((performance as any).memory?.usedJSHeapSize) {
-            const used = (performance as any).memory.usedJSHeapSize;
-            setMemMB((used / 1024 / 1024).toFixed(2) as unknown as number);
-          }
         }
 
         // Grid
@@ -577,6 +572,30 @@ const App = () => {
     };
   }, []);
 
+  //get ping latency
+      useEffect(() => {
+      let interval: any;
+      let isMounted = true;
+
+      const pingTest = async () => {
+        const start = performance.now();
+        try {
+          // You can use any lightweight endpoint, here using Google
+          await fetch("https://gulpy-delta.vercel.app/", { mode: "no-cors" });
+        } catch {}
+        const end = performance.now();
+        if (isMounted) setPing(Math.round(end - start));
+      };
+
+      interval = setInterval(pingTest, 2000); // update ping every 2 seconds
+      pingTest();
+
+      return () => {
+        isMounted = false;
+        clearInterval(interval);
+      };
+    }, []);
+
   return (
     <>
       <canvas ref={canvasRef} className="w-full h-full fixed top-0 left-0" />
@@ -611,7 +630,8 @@ const App = () => {
         Elapsed time: {formatTime(elapsedTime)} <br />
         Score: {score} <br />
         FPS: {fps} <br />
-        Memory: {memMB !== null ? `${memMB} MB` : 'N/A'}
+        Ping: {ping !== null ? `${ping} ms` : '...'}
+
       </div>
 
       {showDeathPopup && (
