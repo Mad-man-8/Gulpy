@@ -471,6 +471,62 @@ const App = () => {
         }
       });
 
+      // Mini map rendering
+      const minimap = document.getElementById('minimap') as HTMLCanvasElement | null;
+      if (minimap) {
+        const mctx = minimap.getContext('2d');
+        if (mctx) {
+          const mw = minimap.width;
+          const mh = minimap.height;
+          mctx.clearRect(0, 0, mw, mh);
+
+          // Draw play area
+          mctx.save();
+          mctx.beginPath();
+          mctx.arc(mw / 2, mh / 2, mw / 2 - 8, 0, Math.PI * 2);
+          mctx.strokeStyle = '#00f2ff';
+          mctx.lineWidth = 3;
+          mctx.stroke();
+          mctx.restore();
+
+          // Scaling factor: world to minimap
+          const scale = (mw / 2 - 10) / PLAY_AREA_RADIUS;
+
+          // Draw food
+          
+
+          // Draw bots
+          bots.current.forEach(bot => {
+            if (bot.dead) return;
+            mctx.beginPath();
+            mctx.arc(
+              mw / 2 + bot.pos.x * scale,
+              mh / 2 + bot.pos.y * scale,
+              5,
+              0,
+              Math.PI * 2
+            );
+            mctx.fillStyle = `hsl(${bot.colorHue},100%,60%)`;
+            mctx.fill();
+          });
+
+          // Draw player
+          mctx.beginPath();
+          mctx.arc(
+            mw / 2 + playerPos.current.x * scale,
+            mh / 2 + playerPos.current.y * scale,
+            7,
+            0,
+            Math.PI * 2
+          );
+          mctx.fillStyle = '#fff';
+          mctx.strokeStyle = '#ff0';
+          mctx.lineWidth = 2;
+          mctx.fill();
+          mctx.stroke();
+        }
+      }
+
       ctx.restore();
 
       requestAnimationFrame(update);
@@ -670,6 +726,25 @@ const App = () => {
           </button>
         </div>
       )}
+
+      <canvas
+        id="minimap"
+        width={180}
+        height={180}
+        style={{
+          position: 'fixed',
+          bottom: 16,
+          right: 16,
+          background: 'rgba(20,20,30,0.85)',
+          border: '2px solid #00f2ff',
+          borderRadius: 12,
+          zIndex: 20,
+          pointerEvents: 'none',
+        }}
+      />
+
+
+
     </>
   );
 };
