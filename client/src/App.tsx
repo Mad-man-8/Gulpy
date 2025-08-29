@@ -71,14 +71,17 @@ const App = () => {
   
 //initialise food
       const [food] = useState<Food[]>(() =>
-      Array.from({ length: FOOD_COUNT }).map(() => ({
-        pos: {
-          x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
-          y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
-        },
-        eaten: false,
-      }))
-    );
+        Array.from({ length: FOOD_COUNT }).map(() => {
+          let pos;
+          do {
+            pos = {
+              x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
+              y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS,
+            };
+          } while (Math.hypot(pos.x, pos.y) > PLAY_AREA_RADIUS - FOOD_RADIUS);
+          return { pos, eaten: false };
+        })
+      );
 
   const bots = useRef<Bot[]>(
     Array.from({ length: 22 }).map(() => ({
@@ -188,7 +191,7 @@ const App = () => {
 
       const nx = playerPos.current.x + moveX;
       const ny = playerPos.current.y + moveY;
-      if (Math.hypot(nx - width / 2, ny - height / 2) < PLAY_AREA_RADIUS) {
+            if (Math.hypot(nx, ny) < PLAY_AREA_RADIUS - 20) {
         playerPos.current.x = nx;
         playerPos.current.y = ny;
       }
@@ -264,6 +267,42 @@ const App = () => {
         }
       }
 
+      // Bot hits another bot's body → bot dies
+      for (let i = 0; i < bots.current.length; i++) {
+        const botA = bots.current[i];
+        if (botA.dead || botA.trail.length === 0) continue;
+        const botAHead = botA.trail[0];
+        for (let j = 0; j < bots.current.length; j++) {
+          if (i === j) continue; // Don't check self
+          const botB = bots.current[j];
+          if (botB.dead) continue;
+          // Start from 1 to skip botB's head
+          for (let k = 1; k < botB.trail.length; k++) {
+            const segment = botB.trail[k];
+            const distance = Math.hypot(botAHead.x - segment.x, botAHead.y - segment.y);
+            if (distance < 20) {
+              botA.dead = true;
+              // Spawn glitter dust from botA's trail
+              for (const seg of botA.trail) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 2;
+                glitter.current.push({
+                  pos: { ...seg },
+                  colorHue: botA.colorHue,
+                  vx: Math.cos(angle) * speed,
+                  vy: Math.sin(angle) * speed,
+                  alpha: 1,
+                  radius: 8 + Math.random() * 6,
+                });
+              }
+              break;
+            }
+          }
+          if (botA.dead) break;
+        }
+      }
+
+
       // Respawn dead bots at a random position
       bots.current.forEach((bot) => {
         if (bot.dead) {
@@ -300,7 +339,7 @@ const App = () => {
         const angleAway = Math.atan2(bot.pos.y - playerHead.y, bot.pos.x - playerHead.x);
         // Smoothly steer away (lerp direction)
         const angleDiff = ((angleAway - bot.direction + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-        bot.direction += angleDiff * 0.15; // 0.15 = steering strength, tweak as needed
+        bot.direction += angleDiff * 0.75; // 0.15 = steering strength, tweak as needed
       }
 
 
@@ -309,11 +348,11 @@ const App = () => {
         }
         const nx = bot.pos.x + Math.cos(bot.direction) * bot.speed;
         const ny = bot.pos.y + Math.sin(bot.direction) * bot.speed;
-        if (Math.hypot(nx, ny) < PLAY_AREA_RADIUS + 10) {
+        if (Math.hypot(nx, ny) < PLAY_AREA_RADIUS - 20) { // -20 for a small margin
           bot.pos.x = nx;
           bot.pos.y = ny;
         } else {
-          bot.direction += Math.PI;
+          bot.direction += Math.PI; // bounce back
         }
         bot.trail.unshift({ ...bot.pos });
         if (bot.trail.length > INITIAL_SNAKE_LENGTH) bot.trail.pop();
@@ -325,10 +364,17 @@ const App = () => {
 
       // Draw play area circle
       ctx.beginPath();
-      ctx.strokeStyle = '#444';
+      ctx.strokeStyle = '#00f2ffff';
       ctx.lineWidth = 15;
-      ctx.arc(width / 2, height / 2, PLAY_AREA_RADIUS, 0, Math.PI * 2);
+      ctx.arc(
+        width / 2 - 985,   // move left (increase/decrease 50 to taste)
+        height / 2 - 525,  // move up
+        PLAY_AREA_RADIUS,
+        0,
+        Math.PI * 2
+      );
       ctx.stroke();
+
 
       // Draw food
       food.forEach((f) => {
