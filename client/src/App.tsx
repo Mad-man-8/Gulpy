@@ -34,6 +34,7 @@ const formatTime = (seconds: number) => {
 };
 
 const App = () => {
+  const [remotePlayers, setRemotePlayers] = useState<{ [id: string]: { x: number, y: number, score: number } }>({});
   const [showDeathPopup, setShowDeathPopup] = useState(false);
   const joystickTouchId = useRef<number | null>(null);
   const joystick = useRef<{
@@ -68,6 +69,48 @@ const App = () => {
   const [fps, setFps] = useState(0);
   const [ping, setPing] = useState<number | null>(null);
   
+      // ❌❌❌❌❌❌ backend ❌❌❌❌❌❌❌
+      useEffect(() => {
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "ws://localhost:3000";
+      const socket = new WebSocket(BACKEND_URL);
+      let playerId: string | null = null;
+
+      socket.onopen = () => console.log("Connected to server");
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "init") {
+          playerId = data.playerId;
+        }
+
+        if (data.type === "state") {
+          // Exclude yourself from the remote players list
+          const others: any = { ...data.players };
+          if (playerId) delete others[playerId];
+          setRemotePlayers(others);
+        }
+      };
+
+      // Send player updates every 50ms
+      const interval = setInterval(() => {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: "update",
+            x: playerPos.current.x,
+            y: playerPos.current.y,
+            score: score
+          }));
+        }
+      }, 50);
+
+      return () => {
+        clearInterval(interval);
+        socket.close();
+      };
+    }, []);
+
+
 //initialise food
       const [food] = useState<Food[]>(() =>
         Array.from({ length: FOOD_COUNT }).map(() => {
@@ -83,7 +126,7 @@ const App = () => {
       );
 
   const bots = useRef<Bot[]>(
-    Array.from({ length: 22 }).map(() => ({
+    Array.from({ length: 2 }).map(() => ({
       pos: {
         x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
         y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
@@ -227,7 +270,7 @@ const App = () => {
 
       if (playerDied) {
         setShowDeathPopup(true);
-        setGameRunning(true);
+        setGameRunning(false);
         return;
       }
 
@@ -439,6 +482,14 @@ const App = () => {
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.stroke();
 
+      // Draw other players
+      Object.values(remotePlayers).forEach((player) => {
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 25, 0, Math.PI * 2);
+        ctx.fillStyle = "cyan"; // color for other players
+        ctx.fill();
+      });
+
       // Draw bots with smooth skin
       bots.current.forEach((bot) => {
         if (bot.dead) return;
@@ -637,7 +688,7 @@ const App = () => {
         const start = performance.now();
         try {
           // You can use any lightweight endpoint, here using Google
-          await fetch("https://gulpy-delta.vercel.app/", { mode: "no-cors" });
+          await fetch("https://ipinfo.io/", { mode: "no-cors" });
         } catch {}
         const end = performance.now();
         if (isMounted) setPing(Math.round(end - start));
