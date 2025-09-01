@@ -33,6 +33,8 @@ const formatTime = (seconds: number) => {
   return `${m}:${s}`;
 };
 
+
+
 const App = () => {
   const [remotePlayers, setRemotePlayers] = useState<{ [id: string]: { x: number, y: number, score: number } }>({});
   const [showDeathPopup, setShowDeathPopup] = useState(false);
@@ -68,9 +70,55 @@ const App = () => {
 
   const [fps, setFps] = useState(0);
   const [ping, setPing] = useState<number | null>(null);
+
+  const drawSnake = (trail: Point[], colorHue?: number) => {
+        if (!trail || trail.length === 0) return;
+
+        for (let i = 0; i < trail.length; i++) {
+          const p = trail[i];
+          const radius = 25 * (1 - i / INITIAL_SNAKE_LENGTH) + 10;
+          const grad = ctxRef.current!.createRadialGradient(p.x, p.y, radius * 0.2, p.x, p.y, radius);
+
+          if (colorHue !== undefined) {
+            grad.addColorStop(0, 'white');
+            grad.addColorStop(0.3, `hsl(${colorHue}, 100%, 60%)`);
+            grad.addColorStop(1, `hsl(${colorHue}, 100%, 40%)`);
+          } else {
+            grad.addColorStop(0, 'white');
+            grad.addColorStop(0.3, `hsl(${(i / INITIAL_SNAKE_LENGTH) * 360}, 100%, 60%)`);
+            grad.addColorStop(1, `hsl(${(i / INITIAL_SNAKE_LENGTH) * 360}, 100%, 40%)`);
+          }
+
+          ctxRef.current!.beginPath();
+          ctxRef.current!.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctxRef.current!.fillStyle = grad;
+          ctxRef.current!.shadowColor = 'rgba(0,0,0,0.3)';
+          ctxRef.current!.shadowBlur = 4;
+          ctxRef.current!.fill();
+          ctxRef.current!.shadowBlur = 0;
+        }
+
+        // Draw head outline
+        const head = trail[0];
+        ctxRef.current!.beginPath();
+        ctxRef.current!.arc(head.x, head.y, 25, 0, Math.PI * 2);
+        ctxRef.current!.lineWidth = 4;
+        ctxRef.current!.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctxRef.current!.stroke();
+      };
+
+
+  // Keep trails for remote players
+  const remoteTrails = useRef<{ [id: string]: Point[] }>({});
+
+
   
       // ❌❌❌❌❌❌ backend ❌❌❌❌❌❌❌
       useEffect(() => {
+
+
+        
+
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "wss://gulpy.onrender.com";
       const socket = new WebSocket(BACKEND_URL);
       let playerId: string | null = null;
@@ -85,11 +133,22 @@ const App = () => {
         }
 
         if (data.type === "state") {
-          // Exclude yourself from the remote players list
           const others: any = { ...data.players };
           if (playerId) delete others[playerId];
           setRemotePlayers(others);
+
+          // Update trails for remote players
+          Object.entries(others).forEach(([id, p]: any) => {
+            if (!remoteTrails.current[id]) {
+              remoteTrails.current[id] = [];
+            }
+            remoteTrails.current[id].unshift({ x: p.x, y: p.y });
+            if (remoteTrails.current[id].length > INITIAL_SNAKE_LENGTH) {
+              remoteTrails.current[id].pop();
+            }
+          });
         }
+
       };
 
       // Send player updates every 50ms
@@ -126,7 +185,7 @@ const App = () => {
       );
 
   const bots = useRef<Bot[]>(
-    Array.from({ length: 8 }).map(() => ({
+    Array.from({ length: 0 }).map(() => ({
       pos: {
         x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
         y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
@@ -489,6 +548,16 @@ const App = () => {
         ctx.fillStyle = "cyan"; // color for other players
         ctx.fill();
       });
+
+      // Draw other players as snakes
+        // Draw other players as snakes
+      Object.keys(remotePlayers).forEach((id) => {
+        const trail = remoteTrails.current[id];
+        if (!trail) return;  // skip if no trail
+        drawSnake(trail);
+      });
+
+
 
       // Draw bots with smooth skin
       bots.current.forEach((bot) => {
