@@ -4,7 +4,7 @@ import path from 'path';
 const router = Router();
 
 // Route for /chat
-router.get('/chat', (req, res) => {
+router.get('/api/chat', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/chat/index.html'));
 });
 
