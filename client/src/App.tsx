@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
 
 type Point = { x: number; y: number };
 type Food = { pos: Point; eaten: boolean };
@@ -33,20 +31,6 @@ const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
   const s = (seconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
-};
-// chat path
-const ChatPage = () => {
-  return (
-    <iframe
-      src="/chat/index.html"
-      style={{
-        width: "100%",
-        height: "100vh",
-        border: "none",
-      }}
-      title="Chat"
-    />
-  );
 };
 
 const App = () => {
@@ -142,7 +126,7 @@ const App = () => {
       );
 
   const bots = useRef<Bot[]>(
-    Array.from({ length: 8 }).map(() => ({
+    Array.from({ length: 2 }).map(() => ({
       pos: {
         x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
         y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
@@ -810,11 +794,8 @@ const App = () => {
         }}
       />
 
-        <Router>
-          <Routes>
-            <Route path="/chat" element={<ChatPage />} />
-          </Routes>
-        </Router>
+
+
     </>
   );
 };

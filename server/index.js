@@ -1,37 +1,12 @@
 import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
-import express from 'express';   // Correct
-import path from 'path';
-import { fileURLToPath } from 'url';
-import routes from './routes.js'; // make sure the .js extension is included
 
 const PORT = process.env.PORT || 3000;
-const app = express();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Store all players in memory
 const players = {}; // { playerId: { x, y, score, colorHue } }
 
-// Serve static files (React build)
-app.use("/chat", express.static(path.join(__dirname, "../client/chat")));
-
-// Optional catch-all for frontend routing
-app.get("/chat/*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/chat/index.html"));
-});
-
-// Use your routes
-app.use(routes);
-
-// Start HTTP server
-const server = app.listen(PORT, () => {
-  console.log(`HTTP server running on port ${PORT}`);
-});
-
-// ws server - attached to http server
-const wss = new WebSocketServer({ server }); // <-- NO port here
+const wss = new WebSocketServer({ port: PORT });
 console.log(`WebSocket server running on port ${PORT}`);
 
 wss.on('connection', (ws) => {
