@@ -185,7 +185,7 @@ const App = () => {
       );
 
   const bots = useRef<Bot[]>(
-    Array.from({ length: 0 }).map(() => ({
+    Array.from({ length: 8 }).map(() => ({
       pos: {
         x: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
         y: (Math.random() * 2 - 1) * PLAY_AREA_RADIUS * 0.8,
@@ -432,7 +432,7 @@ const App = () => {
       const distToPlayer = Math.hypot(dx, dy);
 
       // If player is within a certain distance, steer away
-      if (distToPlayer < 600) { // 600 can be tweaked for "fear" radius
+      if (distToPlayer < 200) { // 600 can be tweaked for "fear" radius
         const angleAway = Math.atan2(bot.pos.y - playerHead.y, bot.pos.x - playerHead.x);
         // Smoothly steer away (lerp direction)
         const angleDiff = ((angleAway - bot.direction + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
