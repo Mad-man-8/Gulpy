@@ -541,13 +541,13 @@ const App = () => {
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.stroke();
 
-      // Draw other players
-      Object.values(remotePlayers).forEach((player) => {
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, 25, 0, Math.PI * 2);
-        ctx.fillStyle = "cyan"; // color for other players
-        ctx.fill();
+      // Draw other players as snakes
+      Object.keys(remotePlayers).forEach((id) => {
+        const trail = remoteTrails.current[id];
+        if (!trail) return; // skip if no trail
+        drawSnake(trail);
       });
+
 
       // Draw other players as snakes
         // Draw other players as snakes
