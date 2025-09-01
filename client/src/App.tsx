@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 type Point = { x: number; y: number };
 type Food = { pos: Point; eaten: boolean };
