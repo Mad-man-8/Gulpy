@@ -2,10 +2,23 @@ import { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 
 const PORT = process.env.PORT || 3000;
+const app = express();
 
 // Store all players in memory
 const players = {}; // { playerId: { x, y, score, colorHue } }
 
+// Serve static files (React build)
+app.use(express.static(path.join(__dirname, '../client/build')));
+
+// Use your routes
+app.use(routes);
+
+// Start HTTP server
+const server = app.listen(PORT, () => {
+  console.log(`HTTP server running on port ${PORT}`);
+});
+
+// ws server
 const wss = new WebSocketServer({ port: PORT });
 console.log(`WebSocket server running on port ${PORT}`);
 
