@@ -15,7 +15,12 @@ const __dirname = path.dirname(__filename);
 const players = {}; // { playerId: { x, y, score, colorHue } }
 
 // Serve static files (React build)
-app.use(express.static(path.join(__dirname, '../client/build')));
+app.use("/chat", express.static(path.join(__dirname, "../client/chat")));
+
+// Optional catch-all for frontend routing
+app.get("/chat/*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/chat/index.html"));
+});
 
 // Use your routes
 app.use(routes);
