@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ChatFrame from "./components/ChatFrame";
 
 type Point = { x: number; y: number };
 type Food = { pos: Point; eaten: boolean };
@@ -64,7 +65,7 @@ const App = () => {
 
   const playerPos = useRef<Point>({ x: 0, y: 0 });
   const mousePos = useRef<Point>({ x: 0, y: 0 });
-  const speed = useRef(2);
+  const speed = useRef(3);
   const body = useRef<Point[]>([]);
   const glitter = useRef<Glitter[]>([]); // Glitter particles array
 
@@ -738,7 +739,7 @@ const App = () => {
       if (e.button === 0) speed.current = 5;
     };
     const up = (e: MouseEvent) => {
-      if (e.button === 0) speed.current = 2;
+      if (e.button === 0) speed.current = 3;
     };
     window.addEventListener('mousedown', down);
     window.addEventListener('mouseup', up);
@@ -763,7 +764,7 @@ const App = () => {
         if (isMounted) setPing(Math.round(end - start));
       };
 
-      interval = setInterval(pingTest, 2000); // update ping every 2 seconds
+      interval = setInterval(pingTest, 9000); // update ping every 9 seconds
       pingTest();
 
       return () => {
@@ -772,24 +773,30 @@ const App = () => {
       };
     }, []);
 
-  return (
-    <>
-      <canvas ref={canvasRef} className="w-full h-full fixed top-0 left-0" />
+return (
+  <>
+    {/* Game Canvas */}
+    <canvas ref={canvasRef} className="w-full h-full fixed top-0 left-0" />
 
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 10,
-          left: 10,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          color: 'white',
-          padding: '6px 12px',
-          borderRadius: 8,
-          fontFamily: 'monospace',
-          fontSize: 14,
-          zIndex: 10,
-        }}
-      ><button
+    {/* Foldable Chat */}
+    <ChatFrame />
+
+    {/* Game HUD */}
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 10,
+        left: 10,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        color: 'white',
+        padding: '6px 12px',
+        borderRadius: 8,
+        fontFamily: 'monospace',
+        fontSize: 14,
+        zIndex: 10,
+      }}
+    >
+      <button
         onClick={startGame}
         style={{
           padding: '4px 8px',
@@ -802,70 +809,74 @@ const App = () => {
         }}
       >
         Start Timer
-      </button> <br />
-        Elapsed time: {formatTime(elapsedTime)} <br />
-        Score: {score} <br />
-        FPS: {fps} <br />
-        Ping: {ping !== null ? `${ping} ms` : '...'}
+      </button>
+      <br />
+      Elapsed time: {formatTime(elapsedTime)} <br />
+      Score: {score} <br />
+      FPS: {fps} <br />
+      Ping: {ping !== null ? `${ping} ms` : '...'}
+    </div>
 
-      </div>
-
-      {showDeathPopup && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(0,0,0,0.7)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            color: 'white',
-            fontSize: 32,
-            fontFamily: 'monospace',
-          }}
-        >
-          <div style={{ marginBottom: 24 }}>You died!</div>
-          <button
-            style={{
-              padding: '10px 24px',
-              fontSize: 20,
-              borderRadius: 8,
-              border: 'none',
-              background: '#28a745',
-              color: 'white',
-              cursor: 'pointer',
-            }}
-            onClick={() => window.location.reload()}
-          >
-            Restart
-          </button>
-        </div>
-      )}
-
-      <canvas
-        id="minimap"
-        width={180}
-        height={180}
+    {/* Death Popup */}
+    {showDeathPopup && (
+      <div
         style={{
           position: 'fixed',
-          bottom: 16,
-          right: 16,
-          background: 'rgba(20,20,30,0.85)',
-          border: '2px solid #00f2ff',
-          borderRadius: 12,
-          zIndex: 20,
-          pointerEvents: 'none',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          color: 'white',
+          fontSize: 32,
+          fontFamily: 'monospace',
         }}
-      />
+      >
+        <div style={{ marginBottom: 24 }}>You died!</div>
+        <button
+          style={{
+            padding: '10px 24px',
+            fontSize: 20,
+            borderRadius: 8,
+            border: 'none',
+            background: '#28a745',
+            color: 'white',
+            cursor: 'pointer',
+          }}
+          onClick={() => window.location.reload()}
+        >
+          Restart
+        </button>
+      </div>
+    )}
+
+    {/* Minimap */}
+    <canvas
+      id="minimap"
+      width={180}
+      height={180}
+      style={{
+        position: 'fixed',
+        bottom: 16,
+        right: 16,
+        background: 'rgba(20,20,30,0.85)',
+        border: '2px solid #00f2ff',
+        borderRadius: 12,
+        zIndex: 20,
+        pointerEvents: 'none',
+      }}
+    />
+  </>
+);
 
 
-    </>
-  );
+
 };
 
 export default App;
+
