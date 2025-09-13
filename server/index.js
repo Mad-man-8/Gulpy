@@ -3,11 +3,34 @@ import { v4 as uuidv4 } from 'uuid';
 
 const PORT = process.env.PORT || 3000;
 
+// ✅ Allowed front-end origins (whitelist)
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173", // local dev
+  "http://localhost:3000", // alt dev
+  "https://gulpies.io",   // production site
+  "https://www.gulpies.io"    // production site
+];
+
 // Store all players in memory
 const players = {}; // { playerId: { x, y, score, colorHue } }
 
-const wss = new WebSocketServer({ port: PORT });
-console.log(`WebSocket server running on port ${PORT}`);
+// Create WebSocket server with origin verification
+const wss = new WebSocketServer({
+  port: PORT,
+  verifyClient: (info, done) => {
+    const origin = info.origin;
+
+    // Allow if origin is whitelisted OR no origin (e.g., non-browser client)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      done(true);
+    } else {
+      console.log(`❌ Blocked WS connection from: ${origin}`);
+      done(false, 401, "Unauthorized");
+    }
+  }
+});
+
+console.log(`✅ WebSocket server running on port ${PORT}`);
 
 wss.on('connection', (ws) => {
   const playerId = uuidv4();
@@ -31,7 +54,7 @@ wss.on('connection', (ws) => {
         if (data.score !== undefined) players[playerId].score = data.score;
       }
     } catch (err) {
-      console.error('Invalid message', err);
+      console.error('❌ Invalid message', err);
     }
   });
 
