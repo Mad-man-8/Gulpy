@@ -255,9 +255,8 @@ const App = () => {
           width / 2, height / 2, width * 0.1,
           width / 2, height / 2, width * 0.7
         );
-        bgGrad.addColorStop(0, "#cf601cff");
-        bgGrad.addColorStop(0.7, "#278f7eff");
-        bgGrad.addColorStop(1, "#835d81ff");
+        bgGrad.addColorStop(0, "#060e41ff");
+        bgGrad.addColorStop(0.5, "#031024ff");
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, width, height);
 
@@ -548,8 +547,8 @@ const App = () => {
       const head = body.current[0];
       ctx.beginPath();
       ctx.arc(head.x, head.y, 25, 0, Math.PI * 2);
-      ctx.lineWidth = 15;
-      ctx.strokeStyle = 'rgba(13, 5, 84, 1)';
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = 'rgba(162, 157, 207, 0.48)';
       ctx.stroke();
 
       // Draw other players as snakes
@@ -596,7 +595,7 @@ const App = () => {
           const bh = bot.trail[0];
           ctx.beginPath();
           ctx.arc(bh.x, bh.y, 25, 0, Math.PI * 2);
-          ctx.lineWidth = 15;
+          ctx.lineWidth = 5;
           ctx.strokeStyle = 'rgba(255,255,255,0.7)';
           ctx.stroke();
         }
