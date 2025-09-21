@@ -119,8 +119,8 @@ const App = () => {
   
       // ❌❌❌❌❌❌ backend ❌❌❌❌❌❌❌
       useEffect(() => {
-      //const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "wss://gulpy.onrender.com";
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "ws://localhost:3001";
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://gulpy.onrender.com";
+      //const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "ws://localhost:3001";
 
       const socket = new WebSocket(BACKEND_URL);
       let playerId: string | null = null;
