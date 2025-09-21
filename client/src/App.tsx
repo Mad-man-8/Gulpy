@@ -39,6 +39,7 @@ const formatTime = (seconds: number) => {
 
 
 const App = () => {
+  const [, setScale] = useState(1);
   const [remotePlayers, setRemotePlayers] = useState<{ [id: string]: { x: number, y: number, score: number } }>({});
   const [showDeathPopup, setShowDeathPopup] = useState(false);
   const joystickTouchId = useRef<number | null>(null);
@@ -200,6 +201,18 @@ const App = () => {
       dead: false,
     }))
   );
+
+
+  // fix resize issues
+  useEffect(() => {
+    const handleResize = () => {
+      const newScale = Math.min(window.innerWidth, window.innerHeight) / 1080;
+      setScale(newScale); // Use state if needed
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Track if mobile acceleration is active (second finger down)
   const mobileAccelerating = useRef(false);
