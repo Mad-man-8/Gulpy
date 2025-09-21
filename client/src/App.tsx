@@ -20,10 +20,12 @@ type Glitter = {
   radius: number;
 };
 // Constants
-const INITIAL_SNAKE_LENGTH = 300;
-const PLAY_AREA_RADIUS = 3000;
+const SCALE = Math.min(window.innerWidth, window.innerHeight) / 1080; // 1080 is the base resolution
+const INITIAL_SNAKE_LENGTH = Math.round(300 * SCALE); // Snake length
+const PLAY_AREA_RADIUS = 3000 * SCALE;
 const FOOD_COUNT = 1050;
-const FOOD_RADIUS = 10;
+const FOOD_RADIUS = 10 * SCALE;
+const SNAKE_RADIUS = 25 * SCALE; // Snake segment size
 
 const getRandomHue = () => Math.floor(Math.random() * 360);
 
@@ -77,7 +79,7 @@ const App = () => {
 
         for (let i = 0; i < trail.length; i++) {
           const p = trail[i];
-          const radius = 25 * (1 - i / INITIAL_SNAKE_LENGTH) + 10;
+          const radius = SNAKE_RADIUS * (1 - i / INITIAL_SNAKE_LENGTH) + 10 * SCALE;
           const grad = ctxRef.current!.createRadialGradient(p.x, p.y, radius * 0.2, p.x, p.y, radius);
 
           if (colorHue !== undefined) {
@@ -463,14 +465,7 @@ const App = () => {
       // Draw play area circle
       ctx.beginPath();
       ctx.strokeStyle = '#00f2ffff';
-      ctx.lineWidth = 15;
-      ctx.arc(
-        width / 2 - 985,   // move left (increase/decrease 50 to taste)
-        height / 2 - 525,  // move up
-        PLAY_AREA_RADIUS,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(0, 0, PLAY_AREA_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
 
 
@@ -516,7 +511,7 @@ const App = () => {
       for (let i = 0; i < body.current.length; i++) {
         const p = body.current[i];
         // Head is bigger, tail is smaller
-        const radius = 25 * (1 - i / INITIAL_SNAKE_LENGTH) + 10;
+        const radius = SNAKE_RADIUS * (1 - i / INITIAL_SNAKE_LENGTH) + 10 * SCALE;
         // Gradient for shiny effect
         const grad = ctx.createRadialGradient(
           p.x, p.y, radius * 0.2,
@@ -565,7 +560,7 @@ const App = () => {
         if (bot.dead) return;
         for (let i = 0; i < bot.trail.length; i+=5) {
           const p = bot.trail[i];
-          const radius = 25 * (1 - i / INITIAL_SNAKE_LENGTH) + 10;
+          const radius = SNAKE_RADIUS * (1 - i / INITIAL_SNAKE_LENGTH) + 10 * SCALE;
           const grad = ctx.createRadialGradient(
             p.x, p.y, radius * 0.2,
             p.x, p.y, radius
