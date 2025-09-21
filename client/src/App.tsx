@@ -119,50 +119,50 @@ const App = () => {
   
       // ❌❌❌❌❌❌ backend ❌❌❌❌❌❌❌
       useEffect(() => {
+      //const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "wss://gulpy.onrender.com";
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "ws://localhost:3001";
 
-
-        
-
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "wss://gulpy.onrender.com";
       const socket = new WebSocket(BACKEND_URL);
       let playerId: string | null = null;
 
-      socket.onopen = () => console.log("Connected to server");
+      socket.onopen = () => console.log("✅ Connected to server");
 
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        if (data.type === "init") {
-          playerId = data.playerId;
+        switch (data.type) {
+          case "init":
+            playerId = data.playerId;
+            break;
+
+          case "state":
+            const others: any = { ...data.players };
+            if (playerId) delete others[playerId]; // Remove self
+            setRemotePlayers(others);
+
+            // Update remote trails
+            Object.entries(others).forEach(([id, p]: any) => {
+              if (!remoteTrails.current[id]) remoteTrails.current[id] = [];
+              remoteTrails.current[id].unshift({ x: p.x, y: p.y });
+              if (remoteTrails.current[id].length > INITIAL_SNAKE_LENGTH) {
+                remoteTrails.current[id].pop();
+              }
+            });
+            break;
+
+          default:
+            console.warn("Unknown message type:", data.type);
         }
-
-        if (data.type === "state") {
-          const others: any = { ...data.players };
-          if (playerId) delete others[playerId];
-          setRemotePlayers(others);
-
-          // Update trails for remote players
-          Object.entries(others).forEach(([id, p]: any) => {
-            if (!remoteTrails.current[id]) {
-              remoteTrails.current[id] = [];
-            }
-            remoteTrails.current[id].unshift({ x: p.x, y: p.y });
-            if (remoteTrails.current[id].length > INITIAL_SNAKE_LENGTH) {
-              remoteTrails.current[id].pop();
-            }
-          });
-        }
-
       };
 
-      // Send player updates every 50ms
+      // Send player updates ~20x/sec
       const interval = setInterval(() => {
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({
             type: "update",
             x: playerPos.current.x,
             y: playerPos.current.y,
-            score: score
+            score
           }));
         }
       }, 50);
@@ -172,6 +172,7 @@ const App = () => {
         socket.close();
       };
     }, []);
+
 
 
 //initialise food
@@ -254,9 +255,9 @@ const App = () => {
           width / 2, height / 2, width * 0.1,
           width / 2, height / 2, width * 0.7
         );
-        bgGrad.addColorStop(0, "#232946");
-        bgGrad.addColorStop(0.7, "#16161a");
-        bgGrad.addColorStop(1, "#0d0d0d");
+        bgGrad.addColorStop(0, "#cf601cff");
+        bgGrad.addColorStop(0.7, "#278f7eff");
+        bgGrad.addColorStop(1, "#835d81ff");
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, width, height);
 
@@ -477,7 +478,8 @@ const App = () => {
 
       // Draw play area circle
       ctx.beginPath();
-      ctx.strokeStyle = '#00f2ffff';
+      ctx.strokeStyle = '#ff0062ff';
+      ctx.lineWidth = 15; 
       ctx.arc(0, 0, PLAY_AREA_RADIUS, 0, Math.PI * 2);
       ctx.stroke();
 
@@ -485,7 +487,7 @@ const App = () => {
       // Draw food
       food.forEach((f) => {
         if (!f.eaten) {
-          ctx.fillStyle = 'lime';
+          ctx.fillStyle = '#18d9dfb3';
           ctx.beginPath();
           ctx.arc(f.pos.x, f.pos.y, FOOD_RADIUS, 0, Math.PI * 2);
           ctx.fill();
@@ -546,8 +548,8 @@ const App = () => {
       const head = body.current[0];
       ctx.beginPath();
       ctx.arc(head.x, head.y, 25, 0, Math.PI * 2);
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 15;
+      ctx.strokeStyle = 'rgba(13, 5, 84, 1)';
       ctx.stroke();
 
       // Draw other players as snakes
@@ -594,7 +596,7 @@ const App = () => {
           const bh = bot.trail[0];
           ctx.beginPath();
           ctx.arc(bh.x, bh.y, 25, 0, Math.PI * 2);
-          ctx.lineWidth = 4;
+          ctx.lineWidth = 15;
           ctx.strokeStyle = 'rgba(255,255,255,0.7)';
           ctx.stroke();
         }
@@ -613,7 +615,7 @@ const App = () => {
           mctx.save();
           mctx.beginPath();
           mctx.arc(mw / 2, mh / 2, mw / 2 - 8, 0, Math.PI * 2);
-          mctx.strokeStyle = '#00f2ff';
+          mctx.strokeStyle = '#ff00a2ff';
           mctx.lineWidth = 3;
           mctx.stroke();
           mctx.restore();
